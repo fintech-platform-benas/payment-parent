@@ -22,6 +22,11 @@
         <dockerfile-maven-version>1.4.13</dockerfile-maven-version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
         <springdoc.version>2.3.0</springdoc.version>
+        <jacoco.version>0.8.11</jacoco.version>
+        <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+        <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.language>java</sonar.language>
     </properties>
 
     <dependencyManagement>
@@ -169,43 +174,48 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.6.3</version>
             </plugin>
-            <!--generate project code documentation-->
-            <!--  <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9</version>
+
+            <!-- JaCoCo for Code Coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
                 <executions>
                     <execution>
-                        <id>attach-javadocs</id>
+                        <id>prepare-agent</id>
                         <goals>
-                            <goal>jar</goal>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                         <configuration>
-                            <additionalparam>${javadoc.opts}</additionalparam>
+                            <rules>
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.50</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>-->
-            <!--generate maven site documentation-->
-            <!--  <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-site-plugin</artifactId>
-                <version>3.9.1</version>
-                <configuration>
-                    <locales>es,es</locales>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <additionalparam>${javadoc.opts}</additionalparam>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>-->
+            </plugin>
         </plugins>
     </build>
     <!-- ============================================ -->
@@ -227,6 +237,7 @@
     <!-- ============================================ -->
     <!-- REPOSITORIES (Download dependencies)         -->
     <!-- ============================================ -->
+    <!-- Commented out Nexus for GitHub Actions compatibility
     <repositories>
         <repository>
             <id>nexus-public</id>
@@ -254,4 +265,5 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
+    -->
 </project>
