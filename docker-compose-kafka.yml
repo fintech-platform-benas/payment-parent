@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    hostname: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SERVER_ID: 1
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - payment-chain-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    hostname: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"      # Para conexiones desde localhost
+      - "9093:9093"      # Para conexiones desde Docker
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9093,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - payment-chain-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: payment-chain
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_READONLY: "false"
+    networks:
+      - payment-chain-network
+
+  # Kafka Topics Initializer
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      cub kafka-ready -b kafka:9093 1 60
+
+      echo 'Creating topics...'
+
+      # Customer events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 \
+        --topic customer-events \
+        --partitions 3 \
+        --replication-factor 1 \
+        --config retention.ms=604800000
+
+      # Transaction events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 \
+        --topic transaction-events \
+        --partitions 3 \
+        --replication-factor 1 \
+        --config retention.ms=604800000
+
+      # Product events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 \
+        --topic product-events \
+        --partitions 3 \
+        --replication-factor 1 \
+        --config retention.ms=604800000
+
+      # Audit events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 \
+        --topic audit-events \
+        --partitions 3 \
+        --replication-factor 1 \
+        --config retention.ms=2592000000
+
+      # Notification events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 \
+        --topic notification-events \
+        --partitions 3 \
+        --replication-factor 1 \
+        --config retention.ms=259200000
+
+      # Dead Letter Queue
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 \
+        --topic dlq-events \
+        --partitions 1 \
+        --replication-factor 1 \
+        --config retention.ms=2592000000
+
+      echo 'Topics created successfully!'
+      kafka-topics --list --bootstrap-server kafka:9093
+      "
+    networks:
+      - payment-chain-network
+
+volumes:
+  zookeeper-data:
+    driver: local
+  zookeeper-logs:
+    driver: local
+  kafka-data:
+    driver: local
+
+networks:
+  payment-chain-network:
+    driver: bridge
+
+# INSTRUCCIONES:
+#
+# 1. Levantar Kafka:
+#    docker-compose -f docker-compose-kafka.yml up -d
+#
+# 2. Verificar que esté corriendo:
+#    docker-compose -f docker-compose-kafka.yml ps
+#
+# 3. Ver logs:
+#    docker-compose -f docker-compose-kafka.yml logs -f kafka
+#
+# 4. Acceder a Kafka UI:
+#    http://localhost:8090
+#
+# 5. Producir mensaje de prueba:
+#    docker exec -it kafka kafka-console-producer --broker-list localhost:9092 --topic customer-events
+#
+# 6. Consumir mensajes de prueba:
+#    docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic customer-events --from-beginning
+#
+# 7. Listar topics:
+#    docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
+#
+# 8. Ver detalles de un topic:
+#    docker exec -it kafka kafka-topics --describe --bootstrap-server localhost:9092 --topic customer-events
+#
+# 9. Detener:
+#    docker-compose -f docker-compose-kafka.yml down
+#
+# 10. Detener y eliminar datos:
+#     docker-compose -f docker-compose-kafka.yml down -v
