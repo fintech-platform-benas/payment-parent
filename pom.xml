@@ -219,9 +219,23 @@
         </plugins>
     </build>
     <!-- ============================================ -->
-    <!-- DISTRIBUTION MANAGEMENT (Nexus Repository)   -->
+    <!-- DISTRIBUTION MANAGEMENT                      -->
     <!-- ============================================ -->
     <distributionManagement>
+        <!-- GitHub Packages -->
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/fintech-platform-benas/payment-parent</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/fintech-platform-benas/payment-parent</url>
+        </snapshotRepository>
+
+        <!-- Local Nexus (for local development) -->
+        <!-- Uncomment when using local Nexus
         <repository>
             <id>nexus-releases</id>
             <name>Nexus Release Repository</name>
@@ -232,13 +246,28 @@
             <name>Nexus Snapshot Repository</name>
             <url>http://localhost:8081/repository/maven-snapshots/</url>
         </snapshotRepository>
+        -->
     </distributionManagement>
 
     <!-- ============================================ -->
     <!-- REPOSITORIES (Download dependencies)         -->
     <!-- ============================================ -->
-    <!-- Commented out Nexus for GitHub Actions compatibility
     <repositories>
+        <!-- GitHub Packages -->
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/fintech-platform-benas/*</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+
+        <!-- Local Nexus (for local development) -->
+        <!-- Uncomment when using local Nexus
         <repository>
             <id>nexus-public</id>
             <name>Nexus Public Repository</name>
@@ -250,20 +279,6 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        -->
     </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>nexus-public</id>
-            <name>Nexus Public Repository</name>
-            <url>http://localhost:8081/repository/maven-public/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-    -->
 </project>
